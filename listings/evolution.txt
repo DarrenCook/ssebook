@@ -22,14 +22,14 @@ fx_server.repeatable_with_datestamp.php
 fx_server.adjusting.php                             fx_client.basic.adjusting.html
 fx_server.adjusting_with_datestamp.php              fx_client.basic.adjusting123.html
 
-    --(refactoring happened here)--
+    --(chapter 4)--
 
 fx_server.structured.php    fxpair.structured.php   fx_client.basic.structured.html
 
                                                     fx_client.history.html
                                                     fx_client.persistent.html
 
-    --(chapter 4)--
+    --(chapter 5)--
 
 fx_server.keepalive.php                             fx_client.keepalive.html
 
@@ -47,16 +47,16 @@ fx_server.go_quiet.php                            fx_client.go_quiet.html  (not 
 
 (fx_server.id.php)                                  fx_client.closure.html
 
-    --(chapter 5)--
+    --(chapter 6)--
 
 fx_server.longpoll.php                              fx_client.longpoll.html
 
-    --(chapter 6)--
+    --(chapter 7)--
 
 fx_server.xhr.php                                   fx_client.xhr.html
 
 
-    --(chapter 8)--
+    --(chapter 9)--
 
 fx_server.cors.php                                  fx_client.cors.html
 
