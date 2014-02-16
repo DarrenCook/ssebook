@@ -1,0 +1,21 @@
+body {background:#fff;font-size:11px;font-family:sans;}
+.price-table {float:left;margin:10px;width:300px;}
+.price-table{
+/*With help from http://www.colorzilla.com/gradient-editor/ */
+background: #b8c6df;
+background: -moz-linear-gradient(top,  #b8c6df 0%, #4870b5 100%);
+background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#b8c6df), color-stop(100%,#4870b5));
+background: -webkit-linear-gradient(top,  #b8c6df 0%,#4870b5 100%);
+background: -o-linear-gradient(top,  #b8c6df 0%,#4870b5 100%);
+background: -ms-linear-gradient(top,  #b8c6df 0%,#4870b5 100%);
+background: linear-gradient(to bottom,  #b8c6df 0%,#4870b5 100%);
+filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#b8c6df', endColorstr='#4870b5',GradientType=0 );
+}
+.price-table caption{background:#000;color:#fff;padding:4px;font-weight:bold;font-size:16px;}
+
+#msg {float:left;width:300px;margin:10px;height:80px;overflow:auto;}
+.latest-price-table{float:left;width:300px;margin:10px;background:#fff;}
+.latest-price-table th {background: #000;color:#fff;padding:4px;}
+
+.price-table th,.price-table td,.latest-price-table td {border:1px solid #000;padding:4px;}
+.price-table td,.latest-price-table td {text-align:right;}

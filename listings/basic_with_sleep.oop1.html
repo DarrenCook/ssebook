@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SSE: Basic With Sleep: OOP (doesn't work)</title>
+</head>
+<body>
+<pre id="x">Initializing...</pre>
+<script>
+function SSE(url,domId){
+this.es = null;
+this.keepaliveSecs = 5;
+this.keepaliveTimer = null;
+
+this.gotActivity = function(){
+if(this.keepaliveTimer != null)
+  clearTimeout(this.keepaliveTimer);
+this.keepaliveTimer = setTimeout(
+  this.connect, this.keepaliveSecs * 1000);
+};
+
+this.connect = function(){
+document.getElementById(domId).
+  innerHTML += "\nIn connect";
+if(this.es)this.es.close();
+this.es = new EventSource(url);
+this.es.addEventListener('message',
+  function(e){this.processOneLine(e.data);},
+  false);
+this.gotActivity();
+};
+
+this.processOneLine = function(s){
+this.gotActivity();
+document.getElementById(domId).
+  innerHTML += "\n" + s;
+var d = JSON.parse(s);
+
+if(d.comeBackIn10s){
+  if(this.keepaliveTimer != null)
+    clearTimeout(this.keepaliveTimer);
+  if(this.es)this.es.close();
+  setTimeout(this.connect,10*1000);
+  }
+};
+
+this.connect();
+}
+
+setTimeout(function(){new SSE("basic_with_sleep.php", "x");},100);
+
+</script>
+</body>
+</html>

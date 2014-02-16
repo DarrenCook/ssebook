@@ -1,0 +1,16 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Basic SSE Example</title>
+  </head>
+  <body>
+    <pre id="x">Initializing...</pre>
+    <script>
+    var es = new EventSource("basic_sse.php");
+    es.addEventListener("message", function(e){
+      document.getElementById("x").innerHTML += "\n" + e.data;
+      },false);
+    </script>
+  </body>
+</html>

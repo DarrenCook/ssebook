@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>FX Client: latest prices</title>
+</head>
+<body>
+
+<div id="msg"></div>
+
+<table border="1" cellpadding="4" cellspacing="0">
+  <tr><th>USD/JPY</th><th>EUR/USD</th><th>AUD/GBP</th></tr>
+  <tr><td id="USD/JPY"></td><td id="EUR/USD"></td><td id="AUD/GBP"></td></tr>
+</table>
+
+<script>
+var es = new EventSource('fx_server.adjusting.php');
+es.addEventListener('message', function(e){
+  var d = JSON.parse(e.data);
+  if(d.seed)document.getElementById('msg')
+    .innerHTML += "seed=" + d.seed + "<br/>";
+  else document.getElementById(d.symbol)
+    .innerHTML = d.bid;
+  },false);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,68 @@
+This describes the sequence of the fx demo files.
+Left column is the server-side file (the URL that EventSource connects to).
+Middle column is the helper class (also server-side).
+Right column is the client-side file to test with.
+A blank cell means use the version above.
+A hyphen means no file.
+Cells with two files in them are a variant of the same thing; see the book text.
+
+
+    --(chapter 3)--
+
+fx_server.hardcoded.php     -                       fx_client.basic.hardcoded.html
+
+fx_server.seconds.php       fxpair.seconds.php      -
+
+fx_server.milliseconds.php  fxpair.milliseconds.php fx_client.basic.milliseconds.html
+
+fx_server.repeatable.php
+
+fx_server.repeatable_with_datestamp.php
+
+fx_server.adjusting.php                             fx_client.basic.adjusting.html
+fx_server.adjusting_with_datestamp.php              fx_client.basic.adjusting123.html
+
+    --(refactoring happened here)--
+
+fx_server.structured.php    fxpair.structured.php   fx_client.basic.structured.html
+
+                                                    fx_client.history.html
+                                                    fx_client.persistent.html
+
+    --(chapter 4)--
+
+fx_server.keepalive.php                             fx_client.keepalive.html
+
+fx_server.retry.php                                 fx_client.retry.html
+
+fx_server.shutdown.php                              fx_client.shutdown.html
+
+                                                    fx_client.jitter.html
+
+fx_server.id.php            fxpair.id.php           fx_client.id.html
+
+fx_server.die_slowly.php                            fx_client.die_slowly.html
+
+fx_server.go_quiet.php                            fx_client.go_quiet.html  (not mentioned in book)
+
+(fx_server.id.php)                                  fx_client.closure.html
+
+    --(chapter 5)--
+
+fx_server.longpoll.php                              fx_client.longpoll.html
+
+    --(chapter 6)--
+
+fx_server.xhr.php                                   fx_client.xhr.html
+
+
+    --(chapter 8)--
+
+fx_server.cors.php                                  fx_client.cors.html
+
+                                                    fx_client.cors_xhr.html
+
+                                                    fx_client.cors_xhr_ie.html
+
+fx_server.auth.*.php                                fx_client.auth.html
+

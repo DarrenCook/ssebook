@@ -1,0 +1,505 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>FX Client: recent prices (authentication)</title>
+<link rel="stylesheet" type="text/css" href="fx_client.css" />
+<script>var isIE9OrEarlier = false;</script>
+<!--[if lte IE 7]>
+<script src="json2.min.js"></script>
+<![endif]-->
+<!--[if lte IE 9]>
+<script language="javascript">
+isIE9OrEarlier = true;
+</script>
+<![endif]-->
+<script>
+Object.keys=Object.keys || function(o,k,r){
+  r=[];
+  for(k in o)if(o.hasOwnProperty(k))r.push(k);
+  return r;
+  }
+</script>
+</head>
+<body>
+<div style="float:right">
+
+<form action="" id="optionsForm" onSubmit="return false">
+Base URL of this page: <span id="currentUrl"></span>
+<br/>
+Base URL to connect to:<input type="text" name="connectUrl" id="connectUrl" value="" />
+<br/>
+Push Method: <select id="pushMethod" name="pushMethod">
+  <option value="auto">Auto-Detect (SSE or fallback)</option>
+  <option value="sse">Native SSE</option>
+  <option value="xhr">XHR</option>
+  <option value="iframe">Iframe</option>
+  <option value="longpoll">Long-Poll</option>
+  </select>
+<br/>
+<input type="submit" id="submitApache" onClick="authByApache()" value="Use fx_server.auth.apache.php" />
+<br/>
+<input type="submit" id="submitPHP" onClick="authByPHP()" value="Use fx_server.auth.php.php" />
+<br/>
+<input type="submit" id="submitNoAuth" onClick="noAuth()" value="Use fx_server.auth.noauth.php" />
+<br/>
+Username: <input type="text" name="username" id="username" value="oreilly" />
+<br/>
+Password: <input type="password" name="password" id="password" value="test" />
+<br/>
+<input type="submit" id="submitCustom" onClick="formSubmit()" value="Submit these credentials to fx_server.auth.custom.php"/>
+</form>
+</div>
+
+<div id="msg"></div>
+<table class="latest-price-table">
+  <tr><th>USD/JPY</th><th>EUR/USD</th><th>AUD/GBP</th></tr>
+  <tr><td id="USD/JPY"></td><td id="EUR/USD"></td><td id="AUD/GBP"></td></tr>
+</table>
+<br clear="all" />
+
+<table class="price-table">
+<caption>USD/JPY</caption>
+<thead>
+<tr>
+  <th>Timestamp</th>
+  <th>Bid</th>
+  <th>Ask</th>
+</tr>
+</thead>
+<tbody id="history_USD/JPY"></tbody>
+</table>
+
+<table class="price-table">
+<caption>EUR/USD</caption>
+<thead>
+<tr>
+  <th>Timestamp</th>
+  <th>Bid</th>
+  <th>Ask</th>
+</tr>
+</thead>
+<tbody id="history_EUR/USD"></tbody>
+</table>
+
+<table class="price-table">
+<caption>AUD/GBP</caption>
+<thead>
+<tr>
+  <th>Timestamp</th>
+  <th>Bid</th>
+  <th>Ask</th>
+</tr>
+</thead>
+<tbody id="history_AUD/GBP"></tbody>
+</table>
+
+<script>
+function SSE(url,options){
+if(!options)options={};
+var defaultOptions={
+    keepaliveSecs: 20,
+    pushMethod:'sse'
+    };
+for(var key in defaultOptions)
+  if(!options.hasOwnProperty(key))
+    options[key]=defaultOptions[key];
+
+var es = null, xhr = null, iframe = null;
+var iframeTimer = null;
+var fullHistory = {};
+var keepaliveTimer = null;
+var lastId = null;
+var longPollTimer = null;
+
+/**
+* Returns true if Safari 6.0 or earlier, or Chrome/Chromium 25 or earlier
+*
+* @internal Must test Chrome before Safari. The Chromium test is
+*   probably redundant, as Chromium/25.0 seems to include "Chrome/25.0" as well.
+*
+* @internal Safari 5.1.7 (at least on Windows) uses:
+*      Version/5.1.7 Safari/534.57.2
+*   So we detect that with two regexes.
+*/
+function oldSafariChromeDetect(){
+var re1 = /Chrome[/](\d+)[.]/i;
+var re2 = /Chromium[/](\d+)[.]/i;
+var re3 = /Safari[/]([0-9.]+)[.]/i;
+var re4 = /Version[/]([0-9.]+)[.]/i;
+var match;
+match = re1.exec(navigator.userAgent);
+if(match){
+    if(parseInt(match[1])<=25)return true;
+    return false;
+    }
+match = re2.exec(navigator.userAgent);
+if(match){
+    if(parseInt(match[1])<=25)return true;
+    return false;
+    }
+match = re3.exec(navigator.userAgent);
+if(match){
+    if(parseFloat(match[1])<=6.0)return true;
+    match = re4.exec(navigator.userAgent);  //Get Version
+    if(parseFloat(match[1])<=6.0)return true;
+    return false;
+    }
+return false;
+}
+
+
+function gotActivity(){
+if(keepaliveTimer!=null)clearTimeout(keepaliveTimer);
+keepaliveTimer = setTimeout(connect,options.keepaliveSecs * 1000);
+}
+
+function startEventSource(){
+if(es){es.close();es=null;}
+if(!isSameDomain()){
+  if(options.post || isOldSafariChrome){startXHR();return;}
+  }
+if(options.post)document.cookie = options.post +"; path=/"; //NB. It assumes options.post is only containing one name/value pair. If needing to send multiple name/value pairs either do something more sophisticated here (and in xhr/longpoll POST handling), or simply send JSON-encoded data, and decode it on the server-side.
+var u = url;
+if(lastId)u += "lastId="
+  + encodeURIComponent(lastId) + '&';
+es = new EventSource(u, { withCredentials: true } );
+es.addEventListener('message', function(e){processOneLine(e.data);},false);
+es.addEventListener('error', handleError, false);
+}
+
+function handleError(e){console.log(e);}
+
+/**
+* Shared code for both xhr and longpoll techniques
+*
+* options.post should be a string ready-formatted and escaped (as x-www-form-urlencoded)
+*
+* @internal To simplify the code, we assume giving a 3rd
+*   parameter of true to XDomainRequest's open() will
+*   quietly before ignored, and not cause problems.
+*/
+function useXMLHttpRequest(fallback,onreadystatechange){
+if(xhr)xhr.abort();
+if(window.XMLHttpRequest)xhr = new XMLHttpRequest();
+else{
+  document.getElementById('msg').innerHTML +=
+    "** Your browser does not support XMLHttpRequest. Sorry.**<br>";
+  return;
+  }
+if("withCredentials" in xhr);
+else if (typeof XDomainRequest != "undefined"){
+    xhr = new XDomainRequest();
+    }
+else{
+  document.getElementById('msg').innerHTML +=
+    "** Your browser does not support CORS. Sorry.**<br>";
+  return;
+  }
+
+var ds = null;
+fallback += "&t=" + (new Date().getTime());
+if(options.post){
+  xhr.open('POST', url, true);
+  xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+  ds = fallback + "&" + options.post;
+  }
+else{
+  xhr.open('GET', url + fallback, true);
+  }
+
+if(lastId)xhr.setRequestHeader('Last-Event-ID',lastId)
+xhr.onreadystatechange = onreadystatechange;
+xhr.send(ds);
+}
+
+
+function startLongPoll(){
+options.keepaliveSecs = 300;
+useXMLHttpRequest("longpoll=1",longPollOnReadyStateChange);
+}
+
+function longPollOnReadyStateChange(){
+if(this.readyState != 4)return;
+xhr = null;
+if(this.status == 200){
+    longPollTimer = setTimeout(startLongPoll, 50);
+    processNonSSE(this.responseText);
+    }
+else{
+    console.log("Connection failure, status:"+this.status);
+    disconnect();
+    longPollTimer = setTimeout(startLongPoll, 30000);
+    }
+}
+
+function getNewText(s,prevOffset){
+var lastLF = s.lastIndexOf("\n")+1;
+if(lastLF == 0 || prevOffset == lastLF)return prevOffset;
+var lines = s.substring(prevOffset, lastLF - 1).split(/\n/);
+for(var ix in lines)processNonSSE(lines[ix]);
+
+if(lastLF > 65536){
+    console.log("Received "+lastLF+" bytes ("+s.length+"). Will reconnect.");
+    disconnect();
+    setTimeout(connect,1);
+    }
+
+return lastLF; //Starting point for next time
+}
+
+
+function startXHR(){
+useXMLHttpRequest("xhr=1",function(){
+  this.prevOffset = getNewText(
+    this.responseText,this.prevOffset);
+  });
+xhr.prevOffset = 0;
+}
+
+
+function startIframe(){
+if(iframe)iframe.parentNode.removeChild(iframe);
+if(iframeTimer)clearInterval(iframeTimer);
+var u = url;
+if(lastId)u += "lastId=" + encodeURIComponent(lastId) + '&';
+u += "xhr=1&t=" + (new Date().getTime());
+iframe = document.createElement("iframe");
+iframe.setAttribute("style", "display: none;");
+iframe.setAttribute("src", u);
+document.body.appendChild(iframe);
+var prevOffset = 0;
+iframeTimer = setInterval(function(){
+  if(!iframe.contentWindow.document.body)return;
+  var s = iframe.contentWindow.document.body.innerHTML;
+  prevOffset = getNewText(s, prevOffset);
+  }, 500);
+}
+
+
+function isSameDomain(){
+var re = /^(https?):[/][/]([^/:]+)(:([^/]+))?/;
+var m1 = re.exec( url );
+var m2 = re.exec( window.location.href );
+if(!m1){
+    re=/^([/][/])([^/:]+)(:([^/]+))?/;
+    m1 = re.exec( url );
+    if(!m1)return true; //Relative URL (or bad URL!)
+    //Protocol left blank in url, so skip protocol check
+    }
+else if(m1[1] != m2[1])return false;
+if(m1[2] != m2[2])return false;
+if(m1[4] != m2[4]){
+    if(!m1[4])m1[4] = (m1[1]=='http')?"80":"443";
+    if(!m2[4])m2[4] = (m2[1]=='http')?"80":"443";
+    if(m1[4] != m2[4])return false;
+    }
+return true;
+}
+
+
+function connect(){
+console.log("In connect(): pushMethod="+options.pushMethod);    //TEMP
+
+if(options.pushMethod == "longpoll")startLongPoll();
+else if(options.pushMethod == "xhr")startXHR();
+else if(options.pushMethod == "iframe")startIframe();   //NB. isSameDomain() not used here, as user is forcing it
+else if(options.pushMethod == "sse")startEventSource();
+//else "auto", meaning we run the auto-detect and try to deal with all cases.
+
+else if(window.EventSource)startEventSource();
+else if(isIE9OrEarlier){
+    if(window.postMessage && isSameDomain())startIframe();
+    else startLongPoll();
+    }
+else if(window.XMLHttpRequest &&
+  typeof new XMLHttpRequest().responseType != "undefined")
+  startXHR();
+else startLongPoll();
+gotActivity();
+}
+
+
+function disconnect(){
+if(keepaliveTimer){
+    clearTimeout(keepaliveTimer);
+    keepaliveTimer = null;
+    }
+if(es){
+    es.close();
+    es = null;
+    }
+if(xhr){
+    xhr.abort();
+    xhr = null;
+    }
+if(longPollTimer){
+    clearTimeout(longPollTimer);
+    longPollTimer = null;
+    }
+if(iframeTimer){
+    clearTimeout(iframeTimer);
+    iframeTimer = null;
+    }
+if(iframe){
+    iframe.parentNode.removeChild(iframe);
+    iframe = null;
+    }
+}
+
+
+function processNonSSE(msg){
+var lines = msg.split(/\n/);
+for(var ix in lines){
+    var s = lines[ix];
+    if(s.length == 0)continue;
+    if(s[0] != '{'){
+        s = s.substring(s.indexOf("{"));
+        if(s.length == 0)continue;
+        }
+    processOneLine(s);
+    }
+}
+
+function processOneLine(s){
+gotActivity();
+try{
+    var d = JSON.parse(s);
+}catch(e){
+    console.log("BAD JSON:"+s+"\n"+e);
+    return;
+}
+
+if(d.seed){
+  var x = document.getElementById('msg');
+  x.innerHTML += "seed="+d.seed+"<br/>";
+  }
+else if(d.symbol){
+  if(!fullHistory.hasOwnProperty(d.symbol))fullHistory[d.symbol] = {};
+  var x = document.getElementById(d.symbol);
+  for(var ix in d.rows){
+    var r = d.rows[ix];
+    x.innerHTML = d.rows[ix].bid;
+    fullHistory[d.symbol][r.timestamp] = [r.bid,r.ask];
+    lastId = r.id;
+    }
+  updateHistoryTable(d.symbol);
+  }
+else if(d.action=="keep-alive"){
+  document.getElementById("msg").innerHTML+=
+  "Keep-alive:"+d.timestamp+"<br/>";
+  }
+else if(d.action=="scheduled_shutdown"){
+  document.getElementById("msg").innerHTML+=
+    "Scheduled shutdown from now. Come back at "+
+    d.until+"(in "+d.until_secs+" secs).<br/>";
+  temporarilyDisconnect(d.until_secs);
+  }
+else if(d.action=="auth"){
+  var x = document.getElementById('msg');
+  x.innerHTML += "Auth Failure:"+d.msg+"<br/>";
+  disconnect();
+  }
+}
+
+
+function temporarilyDisconnect(secs){
+var millisecs = secs * 1000;
+millisecs -= Math.random() * 60000;
+if(millisecs < 0)return;
+disconnect();
+setTimeout(connect,millisecs);
+}
+
+
+function updateHistoryTable(symbol){
+var tbody = makeHistoryTbody(fullHistory[symbol]);
+var x = document.getElementById("history_" + symbol);
+x.parentNode.replaceChild(tbody, x);
+tbody.id = x.id;
+}
+
+/**
+* @param history An object, keyed on timestamp strings
+* @return An HTML tbody
+*/
+function makeHistoryTbody(history){
+var tbody = document.createElement('tbody');
+var keys = Object.keys(history).sort().slice(-10).reverse();
+
+var timestamp, v, row, cell;
+for(var n = 0;n < keys.length;n++){
+    timestamp = keys[n];
+    v = history[timestamp];
+    row = document.createElement('tr');
+
+    cell = document.createElement('th');
+    cell.appendChild(document.createTextNode(timestamp));
+    row.appendChild(cell);
+
+    cell = document.createElement('td');
+    cell.appendChild(document.createTextNode(v[0]));
+    row.appendChild(cell);
+
+    cell = document.createElement('td');
+    cell.appendChild(document.createTextNode(v[1]));
+    row.appendChild(cell);
+
+    tbody.appendChild(row);
+    }
+return tbody;
+}
+
+this.reconnect = function(newUrl,newOptions){
+disconnect();
+url = newUrl;
+for(var key in newOptions)
+  options[key]=newOptions[key];
+connect();
+}
+
+var isOldSafariChrome = oldSafariChromeDetect();
+connect();
+}
+
+function formSubmit(){
+var postData = "login="
+  + encodeURIComponent(
+    document.getElementById('username').value
+    + ","
+    + document.getElementById('password').value
+    );
+start("fx_server.auth.custom.php",postData);
+}
+
+function authByApache(){
+start("fx_server.auth.apache.php");
+}
+
+function authByPHP(){
+start("fx_server.auth.php.php");
+}
+
+function noAuth(){
+start("fx_server.auth.noauth.php");
+}
+
+function start(fname,postData){
+var url = document.getElementById('connectUrl').value
+  + "/"+fname+"?";
+var options={
+    pushMethod:document.getElementById('pushMethod').value,
+    post:postData
+    };
+if(window.sse)window.sse.reconnect(url, options);
+else window.sse = new SSE(url, options);
+}
+
+var url = window.location.href.replace(/[/]fx_client[.]auth[.]html/,"");
+document.getElementById('currentUrl').innerHTML=url;
+document.getElementById('connectUrl').value=url;
+document.getElementById('connectUrl').size=url.length;
+
+</script>
+</body>
+</html>

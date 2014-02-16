@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Long-poll keep-alive test</title>
+  </head>
+  <body>
+    <p id="x">Preparing!</p>
+    <script>
+    function onreadystatechange(){
+        s += "[" + this.readyState + "]";
+        document.getElementById("x").innerHTML = s;
+        if(this.readyState != 4)return;
+        s += "**" + this.status + "**";
+        s += this.responseText + "<br/>\n";
+        document.getElementById("x").innerHTML = s;
+        if(this.status == 0 || this.status == 404){
+            setTimeout(start, 5000); //Try again in 5 seconds
+            }
+        else{
+            setTimeout(start, 50);
+            }
+        }
+
+    function start(){
+        var xhr;
+        if(window.XMLHttpRequest)xhr = new XMLHttpRequest();
+        else xhr = new ActiveXObject("Msxml2.XMLHTTP");
+        xhr.onreadystatechange = onreadystatechange;
+        var url = "http://this.url.is.bad.example.com/longpoll_does_not_exist.php?t=";
+        xhr.open("GET", url + (new Date().getTime()));
+        xhr.send(null);
+        }
+
+    var s = "";
+    setTimeout(start, 500);   //Give it half a second
+    document.getElementById("x").innerHTML = "Started!";
+    </script>
+  </body>
+</html>

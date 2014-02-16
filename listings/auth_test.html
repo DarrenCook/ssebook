@@ -1,0 +1,57 @@
+<!doctype html>
+<html>
+  <head>
+    <title>SSE: Basic/Custom Auth Test</title>
+    <meta charset="UTF-8">
+    <script>
+    var es = null;
+
+    function formSubmit(form){
+    document.cookie = "login="
+     + form.username.value
+     + "," + form.password.value
+     + "; path=/";
+    startSSE("auth.custom.php");
+    }
+
+    function authByApache(){
+    startSSE("auth.basic_by_apache.php");
+    }
+
+    function authByPHP(){
+    startSSE("auth.basic_by_php.php");
+    }
+
+    function startSSE(url){
+    document.getElementById("x").innerHTML = "";
+    if(es){
+      document.getElementById("x").innerHTML
+        += "Closing connection.\n";
+      es.close();
+      }
+    document.getElementById("x").innerHTML
+      += "Connecting to " + url +"\n";
+    es = new EventSource(url);
+    es.addEventListener("message", function(e){
+      document.getElementById("x").innerHTML += "\n" + e.data;
+      },false);
+    }
+    </script>
+  </head>
+  <body>
+    <div style="float:right">
+    <form action="" onSubmit="formSubmit(this);return false">
+    Username: <input type="text" name="username" id="username" value="oreilly" />
+    <br/>
+    Password: <input type="password" name="password" value="test" />
+    <br/>
+    <input type="submit" value="Submit these credentials to auth.custom.php"/>
+    </form>
+    <br/>
+    <button onClick="authByApache()">Use auth.basic_by_apache.php</button>
+    <br/>
+    <button onClick="authByPHP()">Use auth.basic_by_php.php</button>
+    </div>
+    <pre id="x">Waiting...</pre>
+  </body>
+</html>

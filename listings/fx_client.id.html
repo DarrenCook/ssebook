@@ -1,0 +1,178 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>FX Client: recent prices (keepalive)</title>
+<link rel="stylesheet" type="text/css" href="fx_client.css" />
+</head>
+<body>
+<div id="msg"></div>
+<table class="latest-price-table">
+  <tr><th>USD/JPY</th><th>EUR/USD</th><th>AUD/GBP</th></tr>
+  <tr><td id="USD/JPY"></td><td id="EUR/USD"></td><td id="AUD/GBP"></td></tr>
+</table>
+<br clear="all" />
+
+<table class="price-table">
+<caption>USD/JPY</caption>
+<thead>
+<tr>
+  <th>Timestamp</th>
+  <th>Bid</th>
+  <th>Ask</th>
+</tr>
+</thead>
+<tbody id="history_USD/JPY"></tbody>
+</table>
+
+<table class="price-table">
+<caption>EUR/USD</caption>
+<thead>
+<tr>
+  <th>Timestamp</th>
+  <th>Bid</th>
+  <th>Ask</th>
+</tr>
+</thead>
+<tbody id="history_EUR/USD"></tbody>
+</table>
+
+<table class="price-table">
+<caption>AUD/GBP</caption>
+<thead>
+<tr>
+  <th>Timestamp</th>
+  <th>Bid</th>
+  <th>Ask</th>
+</tr>
+</thead>
+<tbody id="history_AUD/GBP"></tbody>
+</table>
+
+<script>
+var url = "fx_server.id.php?";
+var es = null;
+var fullHistory = {};
+var keepaliveSecs = 20;
+var keepaliveTimer = null;
+var lastId = null;
+
+function gotActivity(){
+if(keepaliveTimer!=null)clearTimeout(keepaliveTimer);
+keepaliveTimer = setTimeout(connect,keepaliveSecs * 1000);
+}
+
+function startEventSource(){
+if(es)es.close();
+var u = url;
+if(lastId)u += "lastId="
+  + encodeURIComponent(lastId) + '&';
+es = new EventSource(u);
+es.addEventListener('message', function(e){processOneLine(e.data);},false);
+es.addEventListener('error', handleError, false);
+}
+
+function handleError(e){console.log(e);}
+
+function connect(){
+if(window.EventSource)startEventSource();
+//else handle fallbacks here
+gotActivity();
+}
+
+function processOneLine(s){
+gotActivity();
+try{
+    var d = JSON.parse(s);
+}catch(e){
+    console.log("BAD JSON:"+s+"\n"+e);
+    return;
+}
+
+if(d.seed){
+  var x = document.getElementById('msg');
+  x.innerHTML += "seed="+d.seed+"<br/>";
+  }
+else if(d.symbol){
+  if(!fullHistory.hasOwnProperty(d.symbol))fullHistory[d.symbol] = {};
+  var x = document.getElementById(d.symbol);
+  for(var ix in d.rows){
+    var r = d.rows[ix];
+    x.innerHTML = d.rows[ix].bid;
+    fullHistory[d.symbol][r.timestamp] = [r.bid,r.ask];
+    lastId = r.id;
+    }
+  updateHistoryTable(d.symbol);
+  }
+else if(d.action=="keep-alive"){
+    document.getElementById("msg").innerHTML+=
+    "Keep-alive:"+d.timestamp+"<br/>";
+    }
+else if(d.action=="scheduled_shutdown"){
+    document.getElementById("msg").innerHTML+=
+        "Scheduled shutdown from now. Come back at "+
+        d.until+"(in "+d.until_secs+" secs).<br/>";
+    temporarilyDisconnect(d.until_secs);
+    }
+}
+
+
+function temporarilyDisconnect(secs){
+var millisecs = secs * 1000;
+millisecs -= Math.random() * 60000;
+if(millisecs < 0)return;
+if(keepaliveTimer){
+    clearTimeout(keepaliveTimer);
+    keepaliveTimer = null;
+    }
+if(es){
+    es.close();
+    es = null;
+    }
+setTimeout(connect,millisecs);
+}
+
+
+function updateHistoryTable(symbol){
+var tbody = makeHistoryTbody(fullHistory[symbol]);
+var x = document.getElementById("history_" + symbol);
+x.parentNode.replaceChild(tbody, x);
+tbody.id = x.id;
+}
+
+/**
+* @param history An object, keyed on timestamp strings
+* @return An HTML tbody
+*/
+function makeHistoryTbody(history){
+var tbody = document.createElement('tbody');
+var keys = Object.keys(history).sort().slice(-10).reverse();
+
+var timestamp, v, row, cell;
+for(var n = 0;n < keys.length;n++){
+    timestamp = keys[n];
+    v = history[timestamp];
+    row = document.createElement('tr');
+
+    cell = document.createElement('th');
+    cell.appendChild(document.createTextNode(timestamp));
+    row.appendChild(cell);
+
+    cell = document.createElement('td');
+    cell.appendChild(document.createTextNode(v[0]));
+    row.appendChild(cell);
+
+    cell = document.createElement('td');
+    cell.appendChild(document.createTextNode(v[1]));
+    row.appendChild(cell);
+
+    tbody.appendChild(row);
+    }
+return tbody;
+}
+
+
+setTimeout(connect,100);
+</script>
+</body>
+</html>

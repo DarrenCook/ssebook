@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>FX Client: latest prices</title>
+</head>
+<body>
+
+<div id="msg"></div>
+
+<table border="1" cellpadding="4" cellspacing="0">
+  <tr><th>USD/JPY</th><th>EUR/USD</th><th>AUD/GBP</th></tr>
+  <tr><td id="USD/JPY"></td><td id="EUR/USD"></td><td id="AUD/GBP"></td></tr>
+</table>
+
+<script>
+var url = "fx_server.structured.php?";
+var es = null;
+
+function startEventSource(){
+if(es)es.close();
+es = new EventSource(url);
+es.addEventListener('message', function(e){processOneLine(e.data);}, false);
+es.addEventListener('error', handleError, false);
+}
+
+function handleError(e){}
+
+function connect(){
+if(window.EventSource)startEventSource();
+//else handle fallbacks here
+}
+
+function processOneLine(s){
+var d = JSON.parse(s);
+if(d.seed){
+  var x = document.getElementById('msg');
+  x.innerHTML += "seed="+d.seed+"<br/>";
+  }
+else if(d.symbol){
+  var x = document.getElementById(d.symbol);
+  for(var ix in d.rows)x.innerHTML = d.rows[ix].bid;
+  }
+}
+
+setTimeout(connect,100);
+</script>
+</body>
+</html>

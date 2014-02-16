@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Simple IFrame-Streaming Test</title>
+    <script>
+    function getNewText(s,prevOffset,callback){
+      if(!s)return prevOffset;
+      var lastLF = s.lastIndexOf("\n")+1;
+      if(lastLF == 0 || prevOffset == lastLF)return prevOffset;
+      var lines = s.substring(prevOffset, lastLF - 1).split(/\n/);
+      for(var ix in lines)callback(lines[ix]);
+      return lastLF; //Starting point for next time
+      }
+    </script>
+  </head>
+  <body>
+    <p id="latest">Preparing...</p>
+    <hr/>
+    <pre id="x">Preparing...</pre>
+    <script>
+    function connectIframe(){
+    iframe = document.createElement("iframe");
+    iframe.setAttribute("style", "display: none;");
+    iframe.setAttribute("src", "abc_stream.php");
+    document.body.appendChild(iframe);
+    var prevOffset = 0;
+    setInterval(function(){
+      var s = iframe.contentWindow.document.body.innerHTML;
+      prevOffset = getNewText(s,prevOffset,function(line){
+        document.getElementById("latest").innerHTML = line;
+        });
+      document.getElementById("x").innerHTML = s;
+      }, 500);
+    }
+
+    if(window.postMessage){
+      document.getElementById("x").innerHTML = "OK";
+      setTimeout(connectIframe, 100);
+      }
+    else{
+      document.getElementById("x").innerHTML = "Sorry!";
+      }
+    </script>
+
+  </body>
+</html>

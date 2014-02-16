@@ -1,0 +1,14 @@
+<html>
+<head>
+<title>Cookie logging test</title>
+<script>
+document.cookie="ssetest=123; path=/";
+document.cookie="another one=123; path=/";
+</script>
+</head>
+<body>
+<script>
+var es = new EventSource('log_headers.php');
+</script>
+</body>
+</html>

@@ -1,0 +1,96 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SSE: Basic With Sleep: Why Globals Are Bad</title>
+<style>
+pre {float:left;margin:10px;}
+</style>
+</head>
+<body>
+<pre id="x">Initializing X...</pre>
+<pre id="y">Initializing Y...</pre>
+<script>
+var keepaliveSecs = 5;
+
+var urlX = "basic_with_sleep.php?x";
+var esX = null;
+var keepaliveTimerX = null;
+
+var urlY = "basic_with_sleep.php?y";
+var esY = null;
+var keepaliveTimerY = null;
+
+function gotActivityX(){
+if(keepaliveTimerX != null)
+  clearTimeout(keepaliveTimerX);
+keepaliveTimerX = setTimeout(
+  connectX, keepaliveSecs * 1000);
+}
+
+function connectX(){
+document.getElementById('x').
+  innerHTML += "\nIn connect";
+if(esX)esX.close();
+esX = new EventSource(urlX);
+esX.addEventListener('message',
+  function(e){processOneLineX(e.data);},
+  false);
+gotActivityX();
+}
+
+function processOneLineX(s){
+gotActivityX();
+document.getElementById('x').
+  innerHTML += "\n" + s;
+var d = JSON.parse(s);
+
+if(d.comeBackIn10s){
+  if(keepaliveTimerX != null)
+    clearTimeout(keepaliveTimerX);
+  if(esX)esX.close();
+  setTimeout(connectX,10*1000);
+  }
+
+}
+
+function gotActivityY(){
+if(keepaliveTimerY != null)
+  clearTimeout(keepaliveTimerY);
+keepaliveTimerY = setTimeout(
+  connectY, keepaliveSecs * 1000);
+}
+
+function connectY(){
+document.getElementById('y').
+  innerHTML += "\nIn connect";
+if(esY)esY.close();
+esY = new EventSource(urlY);
+esY.addEventListener('message',
+  function(e){processOneLineY(e.data);},
+  false);
+gotActivityY();
+}
+
+function processOneLineY(s){
+gotActivityY();
+document.getElementById('y').
+  innerHTML += "\n" + s;
+var d = JSON.parse(s);
+
+if(d.comeBackIn10s){
+  if(keepaliveTimerY != null)
+    clearTimeout(keepaliveTimerY);
+  if(esY)esY.close();
+  setTimeout(connectY,10*1000);
+  }
+
+}
+
+
+setTimeout(connectX,100);
+setTimeout(connectY,2000);
+
+</script>
+</body>
+</html>

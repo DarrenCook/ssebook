@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>SSE: Basic With Sleep: Globals</title>
+  </head>
+  <body>
+    <pre id="x">Initializing...</pre>
+    <script>
+    var url = "basic_with_sleep.php";
+    var es = null;
+    var keepaliveSecs = 5;
+    var keepaliveTimer = null;
+
+    function gotActivity(){
+    if(keepaliveTimer != null)
+      clearTimeout(keepaliveTimer);
+    keepaliveTimer = setTimeout(
+      connect, keepaliveSecs * 1000);
+    }
+
+    function connect(){
+    document.getElementById("x").
+      innerHTML += "\nIn connect";
+    if(es)es.close();
+    es = new EventSource(url);
+    es.addEventListener("message",
+      function(e){processOneLine(e.data);},
+      false);
+    gotActivity();
+    }
+
+    function processOneLine(s){
+    gotActivity();
+    document.getElementById("x").
+      innerHTML += "\n" + s;
+    var d = JSON.parse(s);
+
+    if(d.comeBackIn10s){
+      if(keepaliveTimer != null)
+        clearTimeout(keepaliveTimer);
+      if(es)es.close();
+      setTimeout(connect,10*1000);
+      }
+
+    }
+
+    setTimeout(connect,100);
+
+    </script>
+</body>
+</html>

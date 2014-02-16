@@ -1,0 +1,15 @@
+<html>
+  <head>
+    <title>PHPInfo Test</title>
+  </head>
+  <body>
+    <div id="x">(loading...)</div>
+    <script>
+    var es = new EventSource("show_phpinfo.php");
+    es.addEventListener("message", function(e){
+      var s = JSON.parse(e.data);
+      document.getElementById("x").innerHTML = s;
+      },false);
+    </script>
+  </body>
+</html>

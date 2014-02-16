@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Simple XHR Streaming Test</title>
+    <script>
+    function getNewText(s,prevOffset,callback){
+      if(!s)return prevOffset;
+      var lastLF = s.lastIndexOf("\n")+1;
+      if(lastLF == 0 || prevOffset == lastLF)return prevOffset;
+      var lines = s.substring(prevOffset, lastLF - 1).split(/\n/);
+      for(var ix in lines)callback(lines[ix]);
+      return lastLF; //Starting point for next time
+      }
+
+    function process(line){
+      document.getElementById("latest").innerHTML = line;
+      }
+    </script>
+  </head>
+  <body>
+    <p id="latest">Preparing...</p>
+    <hr/>
+    <pre id="x">Preparing...</pre>
+    <script>
+    var s="",s2prev="";
+    var xhr = new XMLHttpRequest();
+    xhr.prevOffset = 0;
+    xhr.open("GET", "abc_stream.php");
+    xhr.onreadystatechange = function(){
+      var s2 = this.readyState + ":" + 
+        this.status + ":" + this.responseText;
+      if(s2 == s2prev)return;
+      s2prev = s2;
+      s += s2 + "<br/>\n";
+      document.getElementById("x").innerHTML = s;
+      this.prevOffset = getNewText(
+        this.responseText,this.prevOffset,process);
+      };
+
+    setTimeout(function(){xhr.send(null)}, 50);
+    </script>
+
+  </body>
+</html>

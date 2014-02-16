@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <noscript>
+      <meta http-equiv="refresh"
+                 content="0;URL=longpoll.nojs.php">
+    </noscript>
+    <meta charset="utf-8" />
+    <title>Minimal long-poll test</title>
+  </head>
+  <body>
+    <p id="x">Preparing!</p>
+    <script>
+    function onreadystatechange(){
+        s += ".[" + this.readyState + "]";
+        document.getElementById('x').innerHTML = s;
+        if(this.readyState != 4)return;
+        s += this.responseText + "<br/>\n";
+        document.getElementById('x').innerHTML = s;
+        setTimeout(start, 50);
+        }
+
+    function start(){
+        var xhr;
+        if(window.XMLHttpRequest){
+           xhr = new XMLHttpRequest();
+          }
+        else{
+          xhr = new ActiveXObject("Msxml2.XMLHTTP");
+          }
+        xhr.onreadystatechange = onreadystatechange;
+        xhr.open('GET', 'minimal_longpoll.php?t=' +
+           (new Date().getTime()));
+        xhr.send(null);
+        }
+
+    var s = "";
+    setTimeout(start,100);
+    document.getElementById('x').innerHTML = "Started!";
+    </script>
+
+  </body>
+</html>
