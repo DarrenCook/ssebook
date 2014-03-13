@@ -23,11 +23,11 @@ function connect(){
 document.getElementById('x').
   innerHTML += "\nIn connect";
 if(es)es.close();
+gotActivity();
 es = new EventSource(url);
 es.addEventListener('message',
   function(e){processOneLine(e.data);},
   false);
-gotActivity();
 }
 
 function processOneLine(s){

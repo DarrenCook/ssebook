@@ -32,11 +32,11 @@ function connectX(){
 document.getElementById('x').
   innerHTML += "\nIn connect";
 if(esX)esX.close();
+gotActivityX();
 esX = new EventSource(urlX);
 esX.addEventListener('message',
   function(e){processOneLineX(e.data);},
   false);
-gotActivityX();
 }
 
 function processOneLineX(s){
@@ -65,11 +65,11 @@ function connectY(){
 document.getElementById('y').
   innerHTML += "\nIn connect";
 if(esY)esY.close();
+gotActivityY();
 esY = new EventSource(urlY);
 esY.addEventListener('message',
   function(e){processOneLineY(e.data);},
   false);
-gotActivityY();
 }
 
 function processOneLineY(s){
